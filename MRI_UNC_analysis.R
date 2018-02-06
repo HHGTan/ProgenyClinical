@@ -52,9 +52,9 @@ colnames(c9_data)[1] <- "ALSnr"
 # Load imaging data
 setwd("/Volumes/Promise_Pegasus/Harold/MRI")
 
-T1_1 <- read.table("T1_NL1/NL1_T1_aparc_cross_ct.txt",header=T,sep="")
-T1_2 <- read.table("T1_NL1/NL1_T1_BA.thresh_cross_ct.txt",header=T,sep="")
-T1_3 <- read.table("T1_NL1/NL1_T1_subcort_cross_volume.txt",header=T,sep="")
+T1_1 <- read.table("T1_NL1_HR/NL1_T1_aparc_cross_ct.txt",header=T,sep="")
+T1_2 <- read.table("T1_NL1_HR/NL1_T1_BA.thresh_cross_ct.txt",header=T,sep="")
+T1_3 <- read.table("T1_NL1_HR/NL1_T1_subcort_cross_volume.txt",header=T,sep="")
 T1_all <- join_all(list(T1_1,T1_2,T1_3), type="left", by="ALSnr", match="first")
 colnames(T1_all)[1] <- "ALSnr_MRI"
 T1_all$th_asymmetrie <- ((T1_all$lh_MeanThickness_thickness - T1_all$rh_MeanThickness_thickness)*2 /
@@ -247,23 +247,23 @@ a2 <- which(colnames(d11)=="RD_rh_BA4p")
 l1 <- lapply(a1:a2, function(i){
   require(broom)
   if(colnames(d11)[i] %in% volROI){
-    df1 <- select_(d11, "Age_MRI", "Gender", "dose", "eTIV", brain_region=colnames(d11)[i])
-    m1 <- lm(brain_region ~ Age_MRI + Gender + dose + eTIV , data=df1)
+    df1 <- select_(d11, "Age_MRI", "Gender", "riskvariant", "eTIV", brain_region=colnames(d11)[i])
+    m1 <- lm(brain_region ~ Age_MRI + Gender + riskvariant + eTIV , data=df1)
   } else {
-    df1 <- select_(d11, "Age_MRI", "Gender", "dose", brain_region=colnames(d11)[i])
-    m1 <- lm(brain_region ~ Age_MRI + Gender + dose, data=df1)
+    df1 <- select_(d11, "Age_MRI", "Gender", "riskvariant", brain_region=colnames(d11)[i])
+    m1 <- lm(brain_region ~ Age_MRI + Gender + riskvariant, data=df1)
     }
   
   
   s1 <- tidy(m1)
-  out1 <- filter(s1, grepl("dose", term))
+  out1 <- filter(s1, grepl("riskvariant", term))
   out1$brain_region <- rep(colnames(d11)[i], nrow(out1))
   return(out1)
 })
 l1_out1 <- do.call(rbind.data.frame, l1)
 #arrange(l1_out1, p.value)
 View(arrange(l1_out1, p.value))
-write.table(l1_out1,"output/ALS_dose.txt",col.names = T, row.names = F,quote=F)
+#write.table(l1_out1,"output/ALS_dose.txt",col.names = T, row.names = F,quote=F)
 
 
 
