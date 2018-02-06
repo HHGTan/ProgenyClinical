@@ -25,9 +25,9 @@ setwd("/Volumes/Promise_Pegasus/Harold/MRI_clinical_master/Data")
 #raw_alsfrs_long <- read_excel("PAN_ALSFRS_20180112.xlsx",sheet=1)
 #raw_ecas_wide <- read_excel("PAN_ECAS_20180112.xlsx",sheet=1)
 
-raw_clin_wide <- read_excel("PANMR_clin_20180122.xlsx",sheet=1)
-raw_alsfrs_long <- read_excel("PANMR_ALSFRS_20180122.xlsx",sheet=1)
-raw_ecas_wide <- read_excel("PANMR_ECAS_20180122.xlsx",sheet=1)
+raw_clin_wide <- read_excel("PANMR_clin_20180206.xlsx",sheet=1)
+raw_alsfrs_long <- read_excel("PANMR_ALSFRS_20180206.xlsx",sheet=1)
+raw_ecas_wide <- read_excel("PANMR_ECAS_20180206.xlsx",sheet=1)
 
 
 
@@ -105,14 +105,13 @@ mri_long$scan_fu <- gsub("FollowUp|_datum_scan", "", mri_long$scan_fu)
 ###############
 
 # Reformat ECAS column names
-raw_ecas_wide <- raw_ecas_wide[,1:46]  # As for now (01/12/2017, FU6 data is not correctly available in progeny)
+raw_ecas_wide <- raw_ecas_wide  # As for now (01/12/2017, FU6 data is not correctly available in progeny)
 colnames(raw_ecas_wide)[grep("FU|ALS number",invert = T,colnames(raw_ecas_wide))] <- paste0("FU1: ",colnames(raw_ecas_wide)[grep("FU|ALS number",invert = T,colnames(raw_ecas_wide))]  )
-
 colnames(raw_ecas_wide) <- gsub("ECAS 1", "ECAS", colnames(raw_ecas_wide))
 colnames(raw_ecas_wide) <- gsub("(Datum.*) (FU.*)","\\2: \\1",colnames(raw_ecas_wide))
 colnames(raw_ecas_wide) <- gsub("-|_"," ", colnames(raw_ecas_wide))
-
 colnames(raw_ecas_wide)[-1] <- sapply(colnames(raw_ecas_wide)[-1], simpleCap)
+colnames(raw_ecas_wide) <- gsub("Interia","Inertia",colnames(raw_ecas_wide))
 
 # Reformat from wide to long format using tidyr
 ecas_long <-  raw_ecas_wide %>% 
@@ -124,6 +123,27 @@ ecas_long$`Datum ECAS` <- as.Date(ecas_long$`Datum ECAS`,format = "%Y-%m-%d")
 domains_ecas <- c("ECAS ALS NONSPECIFIC", "ECAS ALS SPECIFIC", "ECAS Total Score", 
                   "Executive", "Fluency Free + Fixed", "Language", "Memory", "Visuospatial")
 ecas_long[domains_ecas] <- lapply(ecas_long[domains_ecas],as.numeric)
+
+for( i in 1:nrow(ecas_long)) {
+  if ( is.na(ecas_long[i,"Symptoms"]) & is.na(ecas_long[i,"Total Behaviour"]) ) {
+    ecas_long[i,c("Behaviour Disinhibition", "Apathy Inertia", "Hyperorality Altered Food", 
+                  "Loss Of Sympathy", "Perseverative Stereotyped") ] <- NA
+  } else {
+    for (j in c("Behaviour Disinhibition", "Apathy Inertia", "Hyperorality Altered Food",
+                "Loss Of Sympathy", "Perseverative Stereotyped")){
+      if(is.na(ecas_long[i,j])){
+        ecas_long[i,j] <- "N"
+      } 
+      if(ecas_long[i,j] =="Yes"){
+        ecas_long[i,j] <- "Y"
+      }
+    }
+  }
+}
+ecas_bhv <- ecas_long[,c("ALS number","Behaviour Disinhibition", "Apathy Inertia", "Hyperorality Altered Food", 
+                         "Loss Of Sympathy", "Perseverative Stereotyped", "Symptoms", "Total Behaviour")]
+
+
 
 
 # Kies de bijpassende ECAS per subject, per scan.
@@ -303,7 +323,9 @@ c("ALS number", "scan_fu", "scan_datum", "ECAS_FU", "Datum ECAS", "Table ALS-FRS
   "Table ALS-FRS-R.Studie", "015 MRI 3T", "Deelname MRI 3T", "NL - Patient/Control", 
   
   "ECAS Total Score", "ECAS ALS SPECIFIC", "ECAS ALS NONSPECIFIC", 
-  "Language", "Fluency Free + Fixed", "Executive", "Memory", "Visuospatial"
+  "Language", "Fluency Free + Fixed", "Executive", "Memory", "Visuospatial",
+  "ALS number","Behaviour Disinhibition", "Apathy Inertia", "Hyperorality Altered Food", 
+  "Loss Of Sympathy", "Perseverative Stereotyped", "Symptoms", "Total Behaviour","Psychosis"
 )]
 
 

@@ -347,6 +347,7 @@ thROI <-  c("lh_bankssts_thickness",
 "rh_supramarginal_thickness", "rh_frontalpole_thickness", "rh_temporalpole_thickness", 
 "rh_transversetemporal_thickness", "rh_insula_thickness", "rh_MeanThickness_thickness")
 
+library(lmerTest)
 test2 <- ldply(thROI, function(i){
   formlong <- formula(paste0("`",i,"`","~ Age_MRI + Gender  + riskvariant+ (1|ALSnr) + ( 0+ Disease_duration| ALSnr)"))
   m1 <- lmer(formlong , dALSl ) 
