@@ -206,10 +206,28 @@ dtab2 <- join_all(list(dtab2,test1),type="left", by="ALSnr", match="all")
 
 
 
+## testzone
+# Ecas Behaviour
+
+ecasPresBhv <- filter(ecas_long, !is.na(Symptoms) | !is.na(`Total Behaviour`))
+ECAS_FIRST <- ldply(unique(ecasPresBhv$`ALS number`), function (i){
+  df1 <- as.data.frame(filter(ecasPresBhv, `ALS number`==i ))
+  df1$ECAS_first <- ifelse(is.na(df1$`Datum ECAS`),NA,ifelse(df1$`Datum ECAS`==min(df1$`Datum ECAS`,na.rm=T) & !is.na(df1$`Datum ECAS`),"1","0"))
+  #  if()
+  return(df1[c("ALS number", "ECAS_FU", "ECAS_first")])
+})
+ecasBhv <- join_all(list(ecasPresBhv, ECAS_FIRST), by=c("ALS number", "ECAS_FU"), type="left", match = "all")
+unc_dataB<-unc_data
+colnames(unc_dataB)[1] <- "ALS number"
+ecasBhv <- join_all(list(ecasBhv, unc_dataB), by="ALS number",type="left", match="all")
+ecasBhv <- filter(ecasBhv, !is.na(riskvariant))
+ecasBhv1 <-filter(ecasBhv, ECAS_first==1)
+
+ggplot(ecasBhv1,aes(riskvariant,fill=`Total Behaviour`)) + geom_bar()
+prop.table(table(ecasBhv3$Symptoms, ecasBhv3$riskvariant),2)
 
 
-
-
+ggplot(ecasBhv1,aes(riskvariant,fill=`Total Behaviour`)) + geom_bar()
 
 
 
