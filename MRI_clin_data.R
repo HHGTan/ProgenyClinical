@@ -2,7 +2,7 @@
 library(plyr);library(dplyr)
 library(tidyr)
 library(reshape2);library(readxl)
-#library(survival);library(ggplot2)
+library(survival);library(ggplot2)
 #library(lme4); library(effects)
 
 
@@ -35,9 +35,9 @@ raw_ecas_wide <- read_excel("PANMR_ECAS_20180122.xlsx",sheet=1)
 cutoff <- 90
 
 
-################
-# Clean data.. #
-################
+##################
+## Clean data.. ##
+##################
 # To be cleaned:
 # A few missing fields for MRI subjecttype
 # ALSFRS 1111 values
@@ -45,8 +45,11 @@ cutoff <- 90
 
 
 
+#######################
+## RAW CLINICAL DATA ##
+#######################
 
-#Superquickanddirty: Als hij geen mrisubjecttype heeft haalt hij het uit NL pat/cont. 
+# Superquickanddirty: Als hij geen mrisubjecttype heeft haalt hij het uit NL pat/cont. 
 # Om beter FCO's er uit te halen moet ook FALS velden worden meegenomen
 # tzt ook alle mimics uitsplitsen.
 raw_clin_wide$All_Diagnosis <-sapply(ifelse(!is.na(raw_clin_wide$Diagnosis),raw_clin_wide$Diagnosis,
@@ -54,7 +57,7 @@ raw_clin_wide$All_Diagnosis <-sapply(ifelse(!is.na(raw_clin_wide$Diagnosis),raw_
                                             ifelse(raw_clin_wide$`NL - Patient/Control` == "Controle", "Controle",NA))),simpleCap)
 
 
-#Calculate ages at each event
+# Calculate ages at each event
 raw_clin_wide$Age_onset <- as.numeric((as.Date(raw_clin_wide$`Date of onset`) - as.Date(raw_clin_wide$`Date of birth`))/365.25)
 raw_clin_wide$Age_diagnosis <- as.numeric((as.Date(raw_clin_wide$`Date of diagnosis`) - as.Date(raw_clin_wide$`Date of birth`))/365.25)
 raw_clin_wide$Diagnostic_delay <- as.numeric((as.Date(raw_clin_wide$`Date of diagnosis`) - as.Date(raw_clin_wide$`Date of onset`))/365.25*12)
@@ -63,6 +66,8 @@ raw_clin_wide$Dead <- as.numeric(!is.na(raw_clin_wide$`Date of Death`))
 raw_clin_wide$Surv_temp <- ifelse(!is.na(raw_clin_wide$`Date of Death`), raw_clin_wide$`Date of Death`,raw_clin_wide$`AFLOOP: Datum check` )
 raw_clin_wide$Surv_onset <- as.numeric(as.Date(raw_clin_wide$Surv_temp) - as.Date(raw_clin_wide$`Date of onset`))/365.25*12
 
+
+# Explore survival
 temp4 <- temp6 <- NULL
 for (i in c("PLS", "ALS", "PMA", "Other, Namely:")) {
   df1 <- filter(raw_clin_wide, All_Diagnosis==i)
@@ -76,15 +81,15 @@ for (i in c("PLS", "ALS", "PMA", "Other, Namely:")) {
   temp6 <- rbind(temp6,temp5)
 }
 
-
-
 ggplot(temp4, aes(time, survival, col=Diagnosis)) +geom_point(shape=3,size=2) + geom_path(size=0.5)+
   ggtitle("Kaplan-Meier Survival Curve")+ theme(plot.title=element_text(size=20, face="bold"))+
   theme(axis.title.x=element_text(size=18), axis.title.y=element_text(size=18))+
   scale_color_discrete(name="P") + theme(legend.title=element_text(size=16))
 
 
-
+##############
+## MRI DATA ##
+##############
 
 # Create new Long dataframe per MRI scan.
 mri_wide <- raw_clin_wide[,c("ALS number","FollowUp1_datum_scan", "FollowUp2_datum_scan", "FollowUp3_datum_scan", 
@@ -95,10 +100,11 @@ mri_long$scan_datum <- as.Date(mri_long$scan_datum,format="%Y-%m-%d")
 mri_long$scan_fu <- gsub("FollowUp|_datum_scan", "", mri_long$scan_fu)
 
 
+###############
+## ECAS DATA ##
+###############
 
-
-
-# Reformat ecas
+# Reformat ECAS column names
 raw_ecas_wide <- raw_ecas_wide[,1:46]  # As for now (01/12/2017, FU6 data is not correctly available in progeny)
 colnames(raw_ecas_wide)[grep("FU|ALS number",invert = T,colnames(raw_ecas_wide))] <- paste0("FU1: ",colnames(raw_ecas_wide)[grep("FU|ALS number",invert = T,colnames(raw_ecas_wide))]  )
 
@@ -108,8 +114,7 @@ colnames(raw_ecas_wide) <- gsub("-|_"," ", colnames(raw_ecas_wide))
 
 colnames(raw_ecas_wide)[-1] <- sapply(colnames(raw_ecas_wide)[-1], simpleCap)
 
-
-
+# Reformat from wide to long format using tidyr
 ecas_long <-  raw_ecas_wide %>% 
   gather(v, value, grep("FU[1-9]",colnames(raw_ecas_wide)))%>% 
   separate(v, c("ECAS_FU", "col"), sep=": ") %>% 
@@ -121,9 +126,7 @@ domains_ecas <- c("ECAS ALS NONSPECIFIC", "ECAS ALS SPECIFIC", "ECAS Total Score
 ecas_long[domains_ecas] <- lapply(ecas_long[domains_ecas],as.numeric)
 
 
-
-
-#Kies de bijpassende ECAS per subject, per scan.
+# Kies de bijpassende ECAS per subject, per scan.
 mri_ecas_match <-ldply(unique(mri_long$`ALS number`[which(!is.na(mri_long$`ALS number`))]),function(i){
   #subj_mri_dates <- filter(mri_long, `ALS number`== i) #MRI datums
   #subj_ecas_dates <- filter(ecas_long, `ALS number`== i) #ECAS datums
