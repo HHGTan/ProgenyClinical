@@ -232,6 +232,13 @@ ggplot(ecasBhv1,aes(riskvariant,fill=`Total Behaviour`)) + geom_bar()
 
 
 
+ecasBhvLong <- join_all(list(ecasPresBhv , raw_clin_wide), by="ALS number", type="left", match="all")
+ecasBhvLong <- filter(ecasBhvLong, All_Diagnosis=="ALS")
+ecasBhvLong$Age_ECAS <- as.numeric(ecasBhvLong$`Datum ECAS` - as.Date(ecasBhvLong$`Date of birth`)) /365.25
+ecasBhvLong$onset2ecas <- (ecasBhvLong$Age_ECAS - ecasBhvLong$Age_onset) *12
+
+ggplot(ecasBhvLong, aes(x=onset2ecas, y=`Total Behaviour`, color=`ALS number`)) + geom_point() + geom_line() + guides(color=FALSE)
+
 
 ######################################################################################################
 #
