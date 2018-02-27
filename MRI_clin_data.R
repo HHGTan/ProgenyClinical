@@ -26,7 +26,7 @@ setwd("/Volumes/Promise_Pegasus/Harold/MRI_clinical_master/Data")
 #raw_ecas_wide <- read_excel("PAN_ECAS_20180112.xlsx",sheet=1)
 
 raw_clin_wide <- read_excel("PANMR_clin_20180206.xlsx",sheet=1)
-raw_alsfrs_long <- read_excel("PANMR_ALSFRS_20180206.xlsx",sheet=1)
+raw_alsfrs_long <- read_excel("PANMR_ALSFRS_20180208.xlsx",sheet=1)
 raw_ecas_wide <- read_excel("PANMR_ECAS_20180206.xlsx",sheet=1)
 
 
@@ -43,7 +43,7 @@ cutoff <- 90
 # ALSFRS 1111 values
 # 
 
-
+raw_clin_wide$``Deelname MRI 3T``
 
 #######################
 ## RAW CLINICAL DATA ##
@@ -161,6 +161,7 @@ mri_ecas_match <-ldply(unique(mri_long$`ALS number`[which(!is.na(mri_long$`ALS n
   }
   
   #bekijk per ECAS het verschil in dagen met alle MRI scans 
+  #outer(subj_ecas_dates$`Datum ECAS`,subj_mri_dates$scan_datum, "-")
   mat1<- t(sapply(subj_ecas_dates$`Datum ECAS`, function(j){
     return(j - subj_mri_dates$scan_datum)
   }))
@@ -290,8 +291,80 @@ mri_alsfrs_match$`Table ALS-FRS-R.Date of ALS-FRS-R` <- as.character(mri_alsfrs_
 data_alsfrs <- join_all(list(mri_alsfrs_match,alsfrs_long), by=c("ALS number","Table ALS-FRS-R.Date of ALS-FRS-R"), type="left", match="first")
 
 
-#####
-# All data
+###############
+## ALS-FTD-Q ##
+###############
+
+AFQ_col <- grep("ALS-FTD-Q.*",colnames(raw_alsfrs_long), value = T)
+AFQ1 <- raw_alsfrs_long[,c("ALS number",AFQ_col[1:2])]
+AFQ2 <-raw_alsfrs_long[,c("ALS number",AFQ_col[3:4])]
+colnames(AFQ2)<- colnames(AFQ1)
+AFQall <-rbind(AFQ1,AFQ2)
+AFQall <- filter(AFQall, !is.na(`Datum van invullen ALS-FTD-Q`) | !is.na(`Totaal score ALS-FTD-Q`))
+
+match2scan <- function(df, id, measure){
+  ids <- unique(df[,id])
+  
+}
+
+mri_alsfrs_match <-ldply(unique(mri_long$`ALS number`[which(!is.na(mri_long$`ALS number`))]),function(i){
+  #subj_mri_dates <- filter(mri_long, `ALS number`== i) #MRI datums
+  #subj_alsfrs_dates <- filter(alsfrs_long, `ALS number`== i) #ALSFRS datums
+  
+  #workaround
+  subj_mri_dates <- mri_long[which(mri_long$`ALS number`==i),]  #MRI datums
+  subj_alsfrs_dates <- alsfrs_long[which(alsfrs_long$`ALS number`==i),] #ALSFRS datums
+  
+  
+  
+  if (length(grep(i, alsfrs_long$`ALS number`)) ==0   ){
+    subj_alsfrs_dates[1,] <- NA
+  }
+  
+  #bekijk per ALSFRS het verschil in dagen met alle MRI scans 
+  mat1<- t(sapply(subj_alsfrs_dates$`Table ALS-FRS-R.Date of ALS-FRS-R`, function(j){
+    return(j - subj_mri_dates$scan_datum)
+  }))
+  
+  rownames(mat1) <- as.character(subj_alsfrs_dates$`Table ALS-FRS-R.Date of ALS-FRS-R`)
+  
+  #Als het verschil meer dan cutoff dagen is, wordt de ALSFRS niet gebruikt.
+  mat2 <- ifelse( abs(mat1) > cutoff,NA, abs(mat1))
+  mat3 <- apply(mat2, 1, function(x) {if (all(is.na(x))) {NA}  else {which.min(x)} }) 
+  
+  if (length(which(!is.na(unique(mat3))))!=length(which(!is.na(mat3)))){
+    dup_fu <- names(table(mat3))[which(table(mat3)>1)]
+    for (m in dup_fu) {
+      fu_scandif <- mat2[,as.integer(m)]
+      rm_duplicate <- ifelse ( (min(fu_scandif,na.rm = T) != fu_scandif) & !is.na(fu_scandif),NA,1)
+      mat3 <- rm_duplicate * mat3
+    }
+  }
+  
+  x3<- subj_mri_dates 
+  x3$`Table ALS-FRS-R.Date of ALS-FRS-R` <- sapply(x3$scan_fu, function (k){
+    if (length(which(k==mat3))==0) {
+      out_FU <- NA
+    } else {
+      out_FU <- names(mat3)[which(k==mat3)]
+    }
+    return(out_FU)
+  })
+  
+  
+  if (length(which(!is.na(unique(mat3))))!=length(which(!is.na(mat3)))){
+    x3$`Table ALS-FRS-R.Date of ALS-FRS-R` <- rep(i,6)
+  }
+  
+  return(x3)
+})
+mri_alsfrs_match$`Table ALS-FRS-R.Date of ALS-FRS-R` <- as.character(mri_alsfrs_match$`Table ALS-FRS-R.Date of ALS-FRS-R`, format="%Y-%m-%d") # Yes it's weird, in the next bit we'll join_all on character and Date classes, yet somehow this seems to work.
+data_alsfrs <- join_all(list(mri_alsfrs_match,alsfrs_long), by=c("ALS number","Table ALS-FRS-R.Date of ALS-FRS-R"), type="left", match="first")
+
+
+##############
+## All data ##
+##############
 
 ##Merge data together
 data_long <- join_all(list(data_ecas,data_alsfrs), by=c("ALS number", "scan_fu"), type="left", match = "all")
@@ -327,6 +400,10 @@ c("ALS number", "scan_fu", "scan_datum", "ECAS_FU", "Datum ECAS", "Table ALS-FRS
   "ALS number","Behaviour Disinhibition", "Apathy Inertia", "Hyperorality Altered Food", 
   "Loss Of Sympathy", "Perseverative Stereotyped", "Symptoms", "Total Behaviour","Psychosis"
 )]
+
+
+
+
 
 
 
